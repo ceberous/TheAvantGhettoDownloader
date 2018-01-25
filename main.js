@@ -23,7 +23,7 @@ const path = require( "path" );
 	var wMetaInfo = await GetPlaylistMetaInfo( wActive[ "playlistURL" ] );
 	console.log( wMetaInfo );
 	const showID = wActive[ "showID" ];
-	const jsonData = { "show_id": show_id , items: wMetaInfo  };
+	const jsonData = { "show_id": showID , items: wMetaInfo  };
 	fs.writeFileSync( path.join( __dirname , ( showID + ".json" ) ) , JSON.stringify( jsonData ) );
 
 	// 3.) Download It
