@@ -3,6 +3,8 @@ const GetDownloadablePlaylists = require( "./UTILS/generic.js" ).getDownloadable
 const GetPlaylistMetaInfo = require( "./UTILS/generic.js" ).getPlaylistMetaInfo;
 const DownloadMP3 = require( "./UTILS/generic.js" ).downloadAGMP3;
 const SliceMedia = require( "./UTILS/generic.js" ).sliceMedia;
+const fs = require( "fs" );
+const path = require( "path" );
 
 ( async ()=> {
 
@@ -20,14 +22,17 @@ const SliceMedia = require( "./UTILS/generic.js" ).sliceMedia;
 	// 3.) Get Playlist Meta Stuff
 	var wMetaInfo = await GetPlaylistMetaInfo( wActive[ "playlistURL" ] );
 	console.log( wMetaInfo );
+	const showID = wActive[ "showID" ];
+	const jsonData = { "show_id": show_id , items: wMetaInfo  };
+	fs.writeFileSync( path.join( __dirname , ( showID + ".json" ) ) , JSON.stringify( jsonData ) );
 
 	// 3.) Download It
-	await DownloadMP3( wActive[ "mp3URL" ] , wActive[ "showID" ] );
+	await DownloadMP3( wActive[ "mp3URL" ] , showID );
 	
 	// 4.) Split and Tag It
 	for ( var i = 0; i < wMetaInfo.length; ++i ) {
 		console.log( "Slicing [ " + ( i + 1 ).toString() + " ] of " + wMetaInfo.length.toString() );
-		await SliceMedia( wActive[ "showID" ] , wMetaInfo[ i ] );
+		await SliceMedia( showID , wMetaInfo[ i ] );
 	}
 
 })();

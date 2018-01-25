@@ -2,7 +2,8 @@ const path = require( "path" );
 const request = require( "request" );
 const cheerio = require( "cheerio" );
 const FeedParser = require( "feedparser" );
-const download = require( "download-to-file" );
+//const download = require( "download-to-file" );
+const DownloadProgress = require( "download-progress" );
 // const id3 = require( "id3-writer" );
 // const writer = new id3.Writer();
 // https://stackoverflow.com/questions/44910333/how-to-build-wget-progress-bar-in-node-js-for-downloading-files
@@ -23,12 +24,12 @@ require( "shelljs/global" );
 function fixPathSpace( wFP ) {
 	var fixSpace = new RegExp( " " , "g" );
 	wFP = wFP.replace( fixSpace , String.fromCharCode(92) + " " );
-	wFP = wFP.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '')
-	wFP = wFP.replace( ")" , "" );
-	wFP = wFP.replace( "(" , "" );
-	wFP = wFP.replace( "'" , String.fromCharCode(92) + "'" );
-	wFP = wFP.replace( ">" , "" );
-	wFP = wFP.replace( "<" , "" );
+	wFP = wFP.replace( /[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g , '' )
+	wFP = wFP.replace( /\)/g , "" );
+	wFP = wFP.replace( /\(/g , "" );
+	wFP = wFP.replace( /\'/g , String.fromCharCode(92) + "'" );
+	wFP = wFP.replace( /\>/g , "" );
+	wFP = wFP.replace( /\</g , "" );
 	return wFP;
 }
 
@@ -53,6 +54,20 @@ function fixPathSpace( wFP ) {
 // 	});
 // }
 
+function time_diff( wStartTime , wEndTime ) {
+	function hmsToSeconds(s) {
+	  var b = s.split(':');
+	  return b[0]*3600 + b[1]*60 + (+b[2] || 0);
+	}
+	function secondsToHMS(secs) {
+	  function z(n){return (n<10?'0':'') + n;}
+	  var sign = secs < 0? '-':'';
+	  secs = Math.abs(secs);
+	  return sign + z(secs/3600 |0) + ':' + z((secs%3600) / 60 |0) + ':' + z(secs%60);
+	}
+	return( secondsToHMS( hmsToSeconds( wEndTime ) - hmsToSeconds( wStartTime ) ) )
+}
+
 function SLICE_MEDIA( wShowID , wMetaOBJ ) {
 	return new Promise( async function( resolve , reject ) {
 		try {
@@ -60,20 +75,14 @@ function SLICE_MEDIA( wShowID , wMetaOBJ ) {
 			var wPath = path.join( __dirname , ".." , ( wShowID + ".mp3" ) );
 			var z1 = "ffmpeg -i " + wPath + " -ss " + wMetaOBJ[ "startTime" ];
 			if ( wMetaOBJ[ "endTime" ] !== "" ) {
-				z1 =  z1 + " -t " + wMetaOBJ[ "endTime" ];
+				const wDiff = time_diff( wMetaOBJ[ "startTime" ] , wMetaOBJ[ "endTime" ] )
+				z1 =  z1 + " -t " + wDiff;
 			}
-
-			z1 = z1 + " -async 1 -c copy " + fixPathSpace( wMetaOBJ[ "track" ] ) + ".mp3";
+			z1 = z1 + " -async 1 -c copy " + fixPathSpace( wMetaOBJ[ "number" ] + " - " + wMetaOBJ[ "track" ] ) + ".mp3";
 			console.log( z1 );
-
 			var x1 = exec( z1 , { silent: true , async: false } );
 			if ( x1.stderr ) { resolve( x1.stderr ); return; }
 			console.log( "sliced !!" );
-
-			// var wNewPath =  path.join( __dirname , ".." , wMetaOBJ[ "track" ] + ".mp3" );
-			// console.log( wNewPath );
-			//await WRITE_ID3_TAG( wNewPath , wMetaOBJ );
-
 			resolve();
 		}
 		catch( error ) { console.log( error ); resolve( error ); }
@@ -309,6 +318,7 @@ function GET_AVANT_GHETTO_PLAYLIST_META( wURL ) {
 			for ( var i = 0; i < ( wFinalResults.length - 1 ); ++i ) {
 				wFinalResults[ i ][ "endTime" ] = wFinalResults[ i + 1 ][ "startTime" ];
 			}
+			for ( var i = 0; i < wFinalResults.length; ++i ) { wFinalResults[ i ][ "number" ] = ( i + 1 ).toString(); }
 			resolve( wFinalResults );
 		}
 		catch( error ) { console.log( error ); reject( error ); }
@@ -320,16 +330,24 @@ function DOWNLOAD_FILE_AVANT_GHETTO_MP3( wURL , wShowID ) {
 	return new Promise( async function( resolve , reject ) {
 		try {
 
-			var wMP3Link = await MAKE_REQUEST( wURL );
+			const wMP3Link = await MAKE_REQUEST( wURL );
 			console.log( wMP3Link );
 
-			var wPath = path.join( __dirname , ".." , ( wShowID + ".mp3" ) );
+			const wPath = path.join( __dirname , ".." , ( wShowID + ".mp3" ) );
 			console.log( "Downloading To --> " + wPath );
-			console.log( "sorry... no progress bar" );
 
-			download( wMP3Link , wPath , function ( err , filepath ) {
-				if (err) { reject( err ); return; }
-				console.log( "Download finished:" , filepath )
+			//console.log( "sorry... no progress bar" );
+			// download( wMP3Link , wPath , function ( err , filepath ) {
+			// 	if (err) { reject( err ); return; }
+			// 	console.log( "Download finished:" , filepath )
+			// 	resolve();
+			// });
+
+			const wURLS = [ { url: wMP3Link , dest: wPath } ];
+			var download = DownloadProgress( wURLS , {} );
+			download.get( function ( err ) {
+				if ( err ) { reject( err ); return; }
+				console.log( "DONE" );
 				resolve();
 			});
 

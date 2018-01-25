@@ -10,10 +10,12 @@
   "license": "ISC",
   "dependencies": {
     "cheerio": "^1.0.0-rc.2",
+    "download-progress": "0.0.1",
     "download-to-file": "^2.1.0",
     "feed-parser": "^1.0.19",
     "id3-writer": "^1.2.2",
     "list-selector-cli": "0.0.3",
+    "progress": "^2.0.0",
     "request": "^2.83.0",
     "shelljs": "^0.7.8"
   }
